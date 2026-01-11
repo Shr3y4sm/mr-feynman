@@ -9,7 +9,7 @@ Mr. Feynman is a local-first learning companion that uses the **Feynman Techniqu
 ## ✨ Phase 1 Features
 - **The Feynman Loop**: Explain → Analyze → Improve.
 - **Deep Analysis**: Detects "black box" jargon, logical gaps, and false understanding.
-- **Local Intelligence**: Powered by **Phi-3 Mini** (via llama.cpp), running offline on your CPU/GPU.
+- **Local Intelligence**: Powered by **Phi-3 Mini** (via `llama.cpp`), running offline on your CPU/GPU.
 - **Modern UI**: Distraction-free, dark-themed interface designed for focused thinking.
 - **Structured Feedback**:
   - 📝 **Summary**: A high-level assessment of your explanation.
@@ -20,8 +20,8 @@ Mr. Feynman is a local-first learning companion that uses the **Feynman Techniqu
 ## 🛠️ Architecture
 The project uses a **Split Architecture** to keep the core application lightweight and the AI modular:
 
-1.  **The Brain (llama-server)**: A standalone local HTTP server that hosts the GGUF model.
-2.  **The App (FastAPI + Vanilla JS)**: A lightweight frontend/backend that sends prompts to "The Brain".
+1.  **The Brain (`llama-server`)**: A standalone local HTTP server that hosts the GGUF model.
+2.  **The App (`FastAPI` + `Vanilla JS`)**: A lightweight frontend/backend that sends prompts to "The Brain".
 
 ## 🚀 Quick Start Guide
 
@@ -31,40 +31,40 @@ The project uses a **Split Architecture** to keep the core application lightweig
 
 ### 1. Installation
 Clone the repo and install the Python dependencies:
-`ash
+```bash
 # Create venv (optional but recommended)
 python -m venv .venv
 .\.venv\Scripts\activate
 
 # Install requirements
 pip install -r requirements.txt
-`
+```
 
 ### 2. Setup "The Brain" (One-time only)
 This project requires two binary components to run locally:
 
-1.  **The Engine**: Download llama-server.exe (Windows zip) from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases). Extract it to the **root** of this folder.
-2.  **The Model**: Download [Phi-3 Mini 4k Instruct (GGUF)](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) (specifically Phi-3-mini-4k-instruct-q4.gguf) and place it in the models/ folder.
+1.  **The Engine**: Download `llama-server.exe` (Windows zip) from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases). Extract it to the **root** of this folder.
+2.  **The Model**: Download [Phi-3 Mini 4k Instruct (GGUF)](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) (specifically `Phi-3-mini-4k-instruct-q4.gguf`) and place it in the `models/` folder.
 
 ### 3. Run the System
 You need **two** terminal windows open.
 
 **Terminal 1: Start "The Brain"**
-`powershell
+```powershell
 ./start_model_server.ps1
-`
+```
 *Wait until you see "HTTP server listening"*
 
 **Terminal 2: Start "The App"**
-`powershell
+```powershell
 # If using venv
-C:\Users\shreyas m\Downloads\Mr. Feynman="C:\Users\shreyas m\Downloads\Mr. Feynman"; & ".venv\Scripts\python.exe" -m app.main
-`
+$env:PYTHONPATH="$PWD"; & ".venv\Scripts\python.exe" -m app.main
+```
 
 Visit **[http://localhost:8000](http://localhost:8000)** to start learning!
 
 ## 📂 Project Structure
-`	ext
+```text
 Mr. Feynman/
 ├── app/
 │   ├── api/            # FastAPI Endpoints
@@ -76,16 +76,10 @@ Mr. Feynman/
 ├── models/             # GGUF Models (Ignored by Git)
 ├── scripts/            # Helper scripts 
 └── start_model_server.ps1  # Launcher for the AI Engine
-`
-
-## 🗺️ Roadmap
-- [x] **Phase 1 (Current)**: Text-based explanation & analysis loop.
-- [ ] **Phase 2**: Voice input (explain out loud).
-- [ ] **Phase 3**: "Socratic Mode" (AI interrupts with questions).
-- [ ] **Phase 4**: Progression tracking & Knowledge Graph.
+```
 
 ## 🤝 Contributing
-Since this is a personal learning tool, feel free to fork it and add your own "Modes" in pp/prompts/templates.py.
+Since this is a personal learning tool, feel free to fork it and add your own "Modes" in `app/prompts/templates.py`.
 
 ## License
 MIT
