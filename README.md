@@ -1,55 +1,91 @@
 # Mr. Feynman 🧠
 
-A local web app that uses the Feynman learning technique to analyze your explanations of complex topics using local LLMs.
+**"If you can’t explain it simply, you don’t understand it well enough."**
 
-## Features
-- **Privacy First**: Runs entirely locally using `llama.cpp`.
-- **Feynman Analysis**: Scores your explanation based on simplicity, logic, and jargon usage.
-- **Modern UI**: Dark-mode enabled interface built with Tailwind CSS.
+Mr. Feynman is a local-first learning companion that uses the **Feynman Technique** to help you master complex topics. By explaining concepts in simple terms, the AI analyzes your understanding, detects jargon, and identifies knowledge gaps—all running 100% locally on your machine for maximum privacy.
 
-## Prerequisites
+![Project Status](https://img.shields.io/badge/Phase_1-Complete-success)
 
-1. **Python 3.10+**
-2. **Download a GGUF Model**:
-   - We recommend [Phi-3 Mini](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf).
-   - Create a `models` folder in the root directory.
-   - Download `Phi-3-mini-4k-instruct-q4.gguf` and place it inside `models/`.
+## ✨ Phase 1 Features
+- **The Feynman Loop**: Explain → Analyze → Improve.
+- **Deep Analysis**: Detects "black box" jargon, logical gaps, and false understanding.
+- **Local Intelligence**: Powered by **Phi-3 Mini** (via llama.cpp), running offline on your CPU/GPU.
+- **Modern UI**: Distraction-free, dark-themed interface designed for focused thinking.
+- **Structured Feedback**:
+  - 📝 **Summary**: A high-level assessment of your explanation.
+  - 🚩 **Gaps**: Specific logical holes or undefined terms.
+  - 💡 **Suggestions**: Concrete tips to simplify your mental model.
+  - ❓ **Deep Dive**: Follow-up questions to test the edges of your knowledge.
 
-## Setup
+## 🛠️ Architecture
+The project uses a **Split Architecture** to keep the core application lightweight and the AI modular:
 
-1. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+1.  **The Brain (llama-server)**: A standalone local HTTP server that hosts the GGUF model.
+2.  **The App (FastAPI + Vanilla JS)**: A lightweight frontend/backend that sends prompts to "The Brain".
 
-2. **Download Model Engine (Required for Windows/No-Compiler)**:
-   - Download `llama-server.exe` from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases) (look for `llama-b*-bin-win-xyz-x64.zip`).
-   - Extract `llama-server.exe` into the root folder of this project.
+## 🚀 Quick Start Guide
 
-3. **Download Model**:
-   - Create a `models` folder.
-   - Download [Phi-3 Mini GGUF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) (file: `Phi-3-mini-4k-instruct-q4.gguf`) to `models/`.
+### Prerequisites
+- Python 3.10+
+- A Windows PC (Phase 1 optimized for Windows)
 
-4. **Run the System**:
-   
-   **Terminal 1 (Model Server)**:
-   ```powershell
-   ./start_model_server.ps1
-   ```
+### 1. Installation
+Clone the repo and install the Python dependencies:
+`ash
+# Create venv (optional but recommended)
+python -m venv .venv
+.\.venv\Scripts\activate
 
-   **Terminal 2 (App)**:
-   ```powershell
-   python app/main.py
-   ```
+# Install requirements
+pip install -r requirements.txt
+`
 
-## Project Structure
+### 2. Setup "The Brain" (One-time only)
+This project requires two binary components to run locally:
 
-- `app/api`: FastAPI route handlers (endpoints).
-- `app/services`: Business logic (LLM integration, Analysis logic).
-- `app/prompts`: Prompt templates stored separately from code.
-- `app/schemas`: Pydantic models for data validation.
-- `static`: Frontend assets (HTML, JS, CSS).
+1.  **The Engine**: Download llama-server.exe (Windows zip) from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases). Extract it to the **root** of this folder.
+2.  **The Model**: Download [Phi-3 Mini 4k Instruct (GGUF)](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) (specifically Phi-3-mini-4k-instruct-q4.gguf) and place it in the models/ folder.
 
-## Extending the App
-- **New Modes**: Add new prompt templates in `app/prompts/templates.py` and new logic in `app/services`.
-- **New Models**: Just change the `MODEL_PATH` in `.env`.
+### 3. Run the System
+You need **two** terminal windows open.
+
+**Terminal 1: Start "The Brain"**
+`powershell
+./start_model_server.ps1
+`
+*Wait until you see "HTTP server listening"*
+
+**Terminal 2: Start "The App"**
+`powershell
+# If using venv
+C:\Users\shreyas m\Downloads\Mr. Feynman="C:\Users\shreyas m\Downloads\Mr. Feynman"; & ".venv\Scripts\python.exe" -m app.main
+`
+
+Visit **[http://localhost:8000](http://localhost:8000)** to start learning!
+
+## 📂 Project Structure
+`	ext
+Mr. Feynman/
+├── app/
+│   ├── api/            # FastAPI Endpoints
+│   ├── core/           # Config & Privacy settings
+│   ├── prompts/        # The "Feynman Persona" templates
+│   ├── services/       # Logic for talking to the Local LLM
+│   └── main.py         # App Entrypoint
+├── static/             # Frontend (HTML/CSS/JS)
+├── models/             # GGUF Models (Ignored by Git)
+├── scripts/            # Helper scripts 
+└── start_model_server.ps1  # Launcher for the AI Engine
+`
+
+## 🗺️ Roadmap
+- [x] **Phase 1 (Current)**: Text-based explanation & analysis loop.
+- [ ] **Phase 2**: Voice input (explain out loud).
+- [ ] **Phase 3**: "Socratic Mode" (AI interrupts with questions).
+- [ ] **Phase 4**: Progression tracking & Knowledge Graph.
+
+## 🤝 Contributing
+Since this is a personal learning tool, feel free to fork it and add your own "Modes" in pp/prompts/templates.py.
+
+## License
+MIT
