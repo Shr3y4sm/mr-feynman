@@ -1,15 +1,9 @@
 import logging
+from openai import OpenAI
 from app.core.config import settings
 
 # Configure logger
 logger = logging.getLogger(__name__)
-
-try:
-    from llama_cpp import Llama
-    HAS_LLAMA = True
-except ImportError:
-    HAS_LLAMA = False
-    logger.warning("llama-cpp-python not found. LLM features will be disabled.")
 
 class LLMEngine:
     _instance = None
@@ -17,46 +11,41 @@ class LLMEngine:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(LLMEngine, cls).__new__(cls)
-            cls._instance.model = None
+            cls._instance.client = None
         return cls._instance
 
-    def load_model(self):
-        if not HAS_LLAMA:
-            raise ImportError("llama-cpp-python is not installed. Please check your setup.")
-
-        if not self.model:
+    def get_client(self):
+        if not self.client:
             try:
-                logger.info(f"Loading model from {settings.MODEL_PATH}...")
-                self.model = Llama(
-                    model_path=settings.MODEL_PATH,
-                    n_ctx=settings.N_CTX,
-                    n_threads=settings.N_THREADS,
-                    verbose=False
+                self.client = OpenAI(
+                    base_url=settings.LLM_API_BASE,
+                    api_key=settings.LLM_API_KEY
                 )
-                logger.info("Model loaded successfully.")
+                logger.info(f"Connected to LLM Server at {settings.LLM_API_BASE}")
             except Exception as e:
-                logger.error(f"Failed to load model: {e}")
-                # For development without model files, we might want to mock this or raise
+                logger.error(f"Failed to create OpenAI client: {e}")
                 raise e
+        return self.client
 
     def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 1000) -> str:
-        if not self.model:
-            self.load_model()
+        client = self.get_client()
         
-        # Phi-3 / Llama-3 standard prompt format
-        # Note: This is a generic formatting. For Phi-3 specifically, the format is usually:
-        # <|user|>\n{prompt}<|end|>\n<|assistant|>
-        
-        formatted_prompt = f"<|system|>\n{system_prompt}<|end|>\n<|user|>\n{user_prompt}<|end|>\n<|assistant|>"
-        
-        output = self.model(
-            formatted_prompt,
-            max_tokens=max_tokens,
-            stop=["<|end|>", "<|user|>"],
-            echo=False,
-            temperature=0.7
-        )
-        
-        return output['choices'][0]['text']
+        try:
+            response = client.chat.completions.create(
+                model="local-model", # The server ignores this usually, or uses the loaded model
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=0.7
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"LLM Generation Error: {e}")
+            # If connection refused, guide the user
+            if "Connection refused" in str(e) or "connect" in str(e).lower():
+                return '{"summary": "Error: Local LLM Server is not running.", "gaps": ["Please run the start_model_server.ps1 script"], "suggestions": ["Check README"], "follow_up_questions": []}'
+            raise e
 
 llm_engine = LLMEngine()

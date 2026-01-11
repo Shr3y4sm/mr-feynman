@@ -21,26 +21,26 @@ A local web app that uses the Feynman learning technique to analyze your explana
    ```bash
    pip install -r requirements.txt
    ```
-   *Note: If you have a GPU, ensure you install `llama-cpp-python` with CUDA support for faster performance.*
 
-2. **Environment Setup**:
-   Copy the example environment file:
-   ```bash
-   cp .env.example .env
+2. **Download Model Engine (Required for Windows/No-Compiler)**:
+   - Download `llama-server.exe` from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases) (look for `llama-b*-bin-win-xyz-x64.zip`).
+   - Extract `llama-server.exe` into the root folder of this project.
+
+3. **Download Model**:
+   - Create a `models` folder.
+   - Download [Phi-3 Mini GGUF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) (file: `Phi-3-mini-4k-instruct-q4.gguf`) to `models/`.
+
+4. **Run the System**:
+   
+   **Terminal 1 (Model Server)**:
+   ```powershell
+   ./start_model_server.ps1
    ```
-   Edit `.env` if your model path is different.
 
-3. **Run the App**:
-   ```bash
+   **Terminal 2 (App)**:
+   ```powershell
    python app/main.py
    ```
-   Or using uvicorn directly:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-4. **Access the Interface**:
-   Open your browser to `http://localhost:8000`.
 
 ## Project Structure
 

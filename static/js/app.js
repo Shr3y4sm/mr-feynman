@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update char count if needed
         const count = this.value.length;
-        this.nextElementSibling.textContent = \\ / 2000 chars\;
+        this.nextElementSibling.textContent = `${count} / 2000 chars`;
     });
 
     form.addEventListener('submit', async (e) => {
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Helper to create cards
         const createCard = (text, bgClass = 'bg-surface') => {
             const div = document.createElement('div');
-            div.className = \\ p-5 rounded-2xl border border-border text-gray-300 text-base leading-relaxed animate-fade-in-up\;
+            div.className = `${bgClass} p-5 rounded-2xl border border-border text-gray-300 text-base leading-relaxed animate-fade-in-up`;
             div.textContent = text;
             return div;
         };
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
         data.follow_up_questions.forEach(q => {
             const div = document.createElement('div');
             div.className = 'bg-background p-4 rounded-xl border border-border border-l-4 border-l-primary/50 text-gray-300 italic hover:border-l-primary transition-colors cursor-help';
-            div.textContent = \"\"\;
+            div.textContent = `"${q}"`;
             questionsContainer.appendChild(div);
         });
 
