@@ -45,3 +45,5 @@ models/
 # OS Generated
 .DS_Store
 Thumbs.db
+
+data/

@@ -6,6 +6,139 @@ document.addEventListener('DOMContentLoaded', () => {
     const buttonText = analyzeBtn.querySelector('span');
     const resultsSection = document.getElementById('resultsSection');
 
+    // Phase 2 State
+    let currentSourceText = null;
+    let lastAttemptId = null;
+
+    // --- Phase 2: PDF Upload Logic ---
+    const pdfUpload = document.getElementById('pdfUpload');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadBtnText = document.getElementById('uploadBtnText');
+    
+    // New UX Elements
+    const guidanceMessage = document.getElementById('guidanceMessage');
+    const contextBadge = document.getElementById('contextBadge');
+
+    pdfUpload.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // UI Feedback: Loading state
+        uploadBtnText.textContent = "Ingesting...";
+        uploadBtn.classList.add('opacity-70', 'cursor-wait');
+        
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/v2/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                currentSourceText = data.text; // Store in memory
+                
+                // 1. Visual Acknowledgement (Button) - Persistent state
+                uploadBtnText.textContent = "✔ Source material added";
+                uploadBtn.classList.remove('opacity-70', 'cursor-wait', 'text-textMuted');
+                uploadBtn.classList.add('text-primary', 'border-primary', 'bg-primary/10');
+                
+                // 2. Inline Guidance Update
+                const guidanceText = document.getElementById('guidanceText');
+                if (guidanceText) {
+                    guidanceText.textContent = "Your explanation will be checked against the uploaded material.";
+                }
+                guidanceMessage.classList.remove('hidden');
+                
+                // 3. Context Badge
+                const contextBadge = document.getElementById('contextBadge');
+                if (contextBadge) { 
+                    contextBadge.classList.remove('hidden');
+                }
+                
+                // Optional: Focus the concept input to encourage starting
+                setTimeout(() => document.getElementById('concept').focus(), 500);
+
+            } else {
+                throw new Error(data.detail || "Upload failed");
+            }
+        } catch (err) {
+            console.error(err);
+            uploadBtnText.textContent = "Upload Failed";
+            uploadBtn.classList.remove('opacity-70', 'cursor-wait');
+            uploadBtn.classList.add('text-red-500', 'border-red-500');
+            
+            setTimeout(() => {
+                uploadBtnText.textContent = "Add Source Material (PDF)";
+                uploadBtn.classList.remove('text-red-500', 'border-red-500');
+            }, 3000);
+        }
+    });
+
+    // --- Phase 2: History Logic ---
+    const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
+    const historyPanel = document.getElementById('historyPanel');
+    const historyList = document.getElementById('historyList');
+
+    toggleHistoryBtn.addEventListener('click', async () => {
+        const isHidden = historyPanel.classList.contains('hidden');
+        if (isHidden) {
+            historyPanel.classList.remove('hidden');
+            toggleHistoryBtn.textContent = "Hide past explanations";
+            await loadHistory();
+        } else {
+            historyPanel.classList.add('hidden');
+            toggleHistoryBtn.textContent = "Show past explanations";
+        }
+    });
+
+    async function loadHistory() {
+        try {
+            const res = await fetch('/api/v1/history');
+            const attempts = await res.json();
+            
+            historyList.innerHTML = '';
+            if (attempts.length === 0) {
+                historyList.innerHTML = '<li class="italic opacity-50">No attempts yet.</li>';
+                return;
+            }
+
+            attempts.forEach(attempt => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center p-2 hover:bg-background rounded cursor-pointer transition-colors group";
+                const date = new Date(attempt.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                li.innerHTML = `
+                    <span>${attempt.concept} <span class="text-xs opacity-50 ml-1">(${date})</span></span>
+                    <span class="text-xs opacity-0 group-hover:opacity-100 text-primary">Load →</span>
+                `;
+                li.onclick = () => {
+                    document.getElementById('concept').value = attempt.concept;
+                    document.getElementById('explanation').value = attempt.explanation_text;
+                    // Trigger "Previous ID" tracking logic for Phase 2 comparison
+                    lastAttemptId = attempt.attempt_id;
+                    window.scrollTo({top: 0, behavior: 'smooth'});
+                    
+                    // Show a subtle hint
+                    // We reuse the guidance message area for simplicity, or create a temporary toast if we had one.
+                    // Let's modify the Primary Guidance text temporarily or add a status message.
+                    const guide = document.getElementById('guidanceMessage');
+                    if(guide) {
+                        guide.classList.remove('hidden');
+                        const p = guide.querySelector('p:last-child');
+                        if(p) p.textContent = "Loaded a previous explanation — you can revise it.";
+                        // Hide the specific PDF icon part if needed, but keeping it simple is better for now.
+                        guide.querySelector('.text-primary').innerHTML = '<span>↺</span>'; // Simple icon swap
+                    }
+                };
+                historyList.appendChild(li);
+            });
+
+        } catch (e) { console.error("History load failed", e); }
+    }
+
+
     // Simple interaction: Auto-expand textarea
     const textarea = document.getElementById('explanation');
     textarea.addEventListener('input', function() {
@@ -32,21 +165,33 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSection.classList.add('hidden');
 
         try {
-            // API Call
+            // API Call (Updated for Phase 2)
+            const payload = {
+                concept: concept,
+                explanation: explanation,
+                target_audience: audience,
+                source_text: currentSourceText, // Pass if loaded
+                previous_attempt_id: lastAttemptId // Pass if revision
+            };
+
             const response = await fetch('/api/v1/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    concept: concept,
-                    explanation: explanation,
-                    target_audience: audience
-                })
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) throw new Error('Analysis failed');
 
             const data = await response.json();
-            renderResults(data);
+            
+            // Phase 2: Update last id to form a chain
+            if (data.attempt_id) {
+                lastAttemptId = data.attempt_id;
+            }
+
+            // Phase 2: Render
+            renderResults(data.analysis);
+            renderComparison(data.comparison);
 
         } catch (error) {
             console.error(error);
@@ -79,7 +224,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function renderComparison(comparisonData) {
+        const box = document.getElementById('comparisonBox');
+        const text = document.getElementById('progressText');
+        const list = document.getElementById('improvementsList');
+        
+        // Update header if exists, though we hardcoded it in HTML now.
+        // But logic check remains.
+        
+        if (!comparisonData || comparisonData.summary_of_progress === "Unable to generate comparison.") {
+            box.classList.add('hidden');
+            return;
+        }
+
+        text.textContent = comparisonData.summary_of_progress;
+        list.innerHTML = '';
+        
+        // Show improvements
+        if (comparisonData.improvements && comparisonData.improvements.length > 0) {
+            comparisonData.improvements.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `✓ ${item}`;
+                list.appendChild(li);
+            });
+        }
+        
+        // Optionally show remaining gaps here if desired, 
+        // but they are usually covered by the main "Gaps" card.
+        
+        box.classList.remove('hidden');
+    }
+
     function renderResults(data) {
+        // Update Feedback Framing based on context
+        const framing = document.getElementById('feedbackFraming');
+        if (framing) {
+             if (currentSourceText) {
+                framing.textContent = "This feedback is based on your explanation and the material you uploaded.";
+             } else {
+                framing.textContent = "This feedback is based on your explanation.";
+             }
+        }
+
         // Populate Data
         document.getElementById('summaryText').textContent = data.summary;
         
@@ -94,17 +280,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Gaps
         const gapsContainer = document.getElementById('gapsList');
         gapsContainer.innerHTML = '';
-        data.gaps.forEach(gap => gapsContainer.appendChild(createCard(gap, 'bg-[#1A0F0A]'))); // Subtle red tint bg if desired, keeping dark for now
+        (data.gaps || []).forEach(gap => gapsContainer.appendChild(createCard(gap, 'bg-[#1A0F0A]'))); // Subtle red tint bg if desired, keeping dark for now
 
         // Suggestions
         const suggestionsContainer = document.getElementById('suggestionsList');
         suggestionsContainer.innerHTML = '';
-        data.suggestions.forEach(sug => suggestionsContainer.appendChild(createCard(sug)));
+        (data.suggestions || []).forEach(sug => suggestionsContainer.appendChild(createCard(sug)));
 
         // Questions
         const questionsContainer = document.getElementById('questionsList');
         questionsContainer.innerHTML = '';
-        data.follow_up_questions.forEach(q => {
+        (data.follow_up_questions || []).forEach(q => {
             const div = document.createElement('div');
             div.className = 'bg-background p-4 rounded-xl border border-border border-l-4 border-l-primary/50 text-gray-300 italic hover:border-l-primary transition-colors cursor-help';
             div.textContent = `"${q}"`;

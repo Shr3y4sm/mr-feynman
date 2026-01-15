@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import analysis
+from app.api.endpoints import analysis, ingest
 from app.core.config import settings
 
 app = FastAPI(
@@ -20,6 +20,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(analysis.router, prefix="/api/v1", tags=["analysis"])
+app.include_router(ingest.router, prefix="/api/v2", tags=["ingestion"])
 
 # Static Files (Frontend)
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

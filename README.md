@@ -4,24 +4,28 @@
 
 Mr. Feynman is a local-first learning companion that uses the **Feynman Technique** to help you master complex topics. By explaining concepts in simple terms, the AI analyzes your understanding, detects jargon, and identifies knowledge gaps—all running 100% locally on your machine for maximum privacy.
 
-![Project Status](https://img.shields.io/badge/Phase_1-Complete-success)
+![Project Status](https://img.shields.io/badge/Phase_2-Complete-success)
 
-## ✨ Phase 1 Features
+## ✨ Features
+
+### Phase 1: The Core Loop
 - **The Feynman Loop**: Explain → Analyze → Improve.
 - **Deep Analysis**: Detects "black box" jargon, logical gaps, and false understanding.
 - **Local Intelligence**: Powered by **Phi-3 Mini** (via `llama.cpp`), running offline on your CPU/GPU.
 - **Modern UI**: Distraction-free, dark-themed interface designed for focused thinking.
-- **Structured Feedback**:
-  - 📝 **Summary**: A high-level assessment of your explanation.
-  - 🚩 **Gaps**: Specific logical holes or undefined terms.
-  - 💡 **Suggestions**: Concrete tips to simplify your mental model.
-  - ❓ **Deep Dive**: Follow-up questions to test the edges of your knowledge.
+
+### Phase 2: Context & Growth (NEW)
+- **Source Material (RAG)**: Optionally upload PDF notes/textbooks. The AI checks your explanation against the *actual source material* for accuracy, not just logic.
+- **Progress Tracking**: Your previous explanations are saved locally (JSON).
+- **Growth Comparison**: If you revise an explanation, the AI compares it to your last attempt and highlights improvements.
+- **Adaptive UX**: The interface provides inline guidance and context reminders based on your workflow state.
 
 ## 🛠️ Architecture
 The project uses a **Split Architecture** to keep the core application lightweight and the AI modular:
 
 1.  **The Brain (`llama-server`)**: A standalone local HTTP server that hosts the GGUF model.
 2.  **The App (`FastAPI` + `Vanilla JS`)**: A lightweight frontend/backend that sends prompts to "The Brain".
+3.  **The Context Engine (Phase 2)**: A custom Python-based RAG pipeline (using `pypdf` + TF-IDF chunking) that requires *no* external vector database.
 
 ## 🚀 Quick Start Guide
 
