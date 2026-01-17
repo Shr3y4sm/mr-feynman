@@ -82,8 +82,5 @@ Mr. Feynman/
 └── start_model_server.ps1  # Launcher for the AI Engine
 ```
 
-## 🤝 Contributing
-Since this is a personal learning tool, feel free to fork it and add your own "Modes" in `app/prompts/templates.py`.
-
 ## License
 MIT
