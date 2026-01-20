@@ -280,6 +280,62 @@
               class="text-sm text-green-400 list-disc list-inside space-y-1"
             ></ul>
           </div>
+
+          <!-- Phase 3: Speaking Metrics -->
+          <div
+            id="speakingMetricsBox"
+            class="mt-6 pt-6 border-t border-border hidden"
+          >
+            <h4
+              class="text-sm font-semibold text-white mb-3 flex items-center gap-2"
+            >
+              <span>🎙️</span> Speaking Usage
+            </h4>
+            <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+              <div class="bg-background rounded p-2 border border-border">
+                <div id="metricTotalTime" class="text-lg font-bold text-white">
+                  0s
+                </div>
+                <div
+                  class="text-[10px] uppercase tracking-wider text-textMuted"
+                >
+                  Total
+                </div>
+              </div>
+              <div class="bg-background rounded p-2 border border-border">
+                <div
+                  id="metricActiveTime"
+                  class="text-lg font-bold text-primary"
+                >
+                  0s
+                </div>
+                <div
+                  class="text-[10px] uppercase tracking-wider text-textMuted"
+                >
+                  Active
+                </div>
+              </div>
+              <div class="bg-background rounded p-2 border border-border">
+                <div id="metricPauseRatio" class="text-lg font-bold text-white">
+                  0%
+                </div>
+                <div
+                  class="text-[10px] uppercase tracking-wider text-textMuted"
+                >
+                  Pause
+                </div>
+              </div>
+            </div>
+
+            <p
+              id="speakingInsight"
+              class="text-sm text-textMuted italic mb-2"
+            ></p>
+            <ul
+              id="speakingSuggestions"
+              class="text-sm text-blue-400 list-disc list-inside space-y-1"
+            ></ul>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -8,6 +8,8 @@ class AnalysisRequest(BaseModel):
     # Phase 2 additions
     source_text: Optional[str] = None
     previous_attempt_id: Optional[str] = None
+    # Phase 3 additions
+    speaking_duration: Optional[dict] = Field(None, description="Metrics: total_seconds, active_seconds")
 
 class AnalysisResponse(BaseModel):
     analysis: dict

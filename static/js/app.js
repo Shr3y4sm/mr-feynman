@@ -147,69 +147,147 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check browser support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+    // Metrics State
+    let speechMetrics = {
+        startTime: 0,
+        totalDuration: 0,
+        activeDuration: 0,
+        currentActiveStart: 0
+    };
+
     if (SpeechRecognition && micBtn) {
         micBtn.classList.remove('hidden');
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false; 
+        
+        // Toggle Logic: continuous allows user to control stop
+        recognition.continuous = true; 
+        recognition.interimResults = true; // Changed to partial updates for better UX
         recognition.lang = 'en-US';
 
         let isListening = false;
+        let finalTranscript = '';
 
+        // Helpers
+        const resetMetrics = () => {
+            speechMetrics = {
+                startTime: Date.now(),
+                totalDuration: 0,
+                activeDuration: 0,
+                currentActiveStart: 0
+            };
+        };
+
+        const updateButtonState = (listening) => {
+            if (listening) {
+                micText.textContent = "Stop Recording";
+                micBtn.classList.add('animate-pulse', 'text-red-500');
+            } else {
+                micText.textContent = "Explain by speaking";
+                micBtn.classList.remove('animate-pulse', 'text-red-500');
+            }
+            micBtn.disabled = false;
+        };
+
+        // Click Handler (Toggle)
         micBtn.addEventListener('click', () => {
              if (isListening) {
+                 // User manual stop
                  recognition.stop();
-                 return;
-             }
-             try {
-                 recognition.start();
-                 isListening = true;
-                 micBtn.disabled = true; // Disable while listening per requirements
-                 micText.textContent = "Listening… speak naturally";
-                 micBtn.classList.add('animate-pulse', 'text-red-500'); // Visual feedback
-             } catch (err) {
-                 console.error("Speech start error", err);
-                 isListening = false;
-                 micBtn.disabled = false;
+                 // Duration calc happens in onend
+             } else {
+                 // Start
+                 try {
+                     finalTranscript = explanationInput.value; // Snapshot current text to append to
+                     resetMetrics();
+                     recognition.start();
+                     isListening = true;
+                     updateButtonState(true);
+                 } catch (err) {
+                     console.error("Speech start error", err);
+                     isListening = false;
+                     updateButtonState(false);
+                 }
              }
         });
 
+        // Metrics Tracking
+        recognition.onspeechstart = () => {
+            speechMetrics.currentActiveStart = Date.now();
+        };
+
+        recognition.onspeechend = () => {
+            if (speechMetrics.currentActiveStart > 0) {
+                speechMetrics.activeDuration += (Date.now() - speechMetrics.currentActiveStart);
+                speechMetrics.currentActiveStart = 0;
+            }
+        };
+
         recognition.onend = () => {
+             if (isListening) {
+                 // Calculate final total time
+                 speechMetrics.totalDuration = Date.now() - speechMetrics.startTime;
+                 
+                 // Handle active time edge case (if stopped while speaking)
+                 if (speechMetrics.currentActiveStart > 0) {
+                     speechMetrics.activeDuration += (Date.now() - speechMetrics.currentActiveStart);
+                 }
+             }
+
              isListening = false;
-             micBtn.disabled = false;
-             micBtn.classList.remove('animate-pulse', 'text-red-500');
+             updateButtonState(false);
              
-             // Only reset text if we didn't just get a result (which sets a specific message)
-             if (micText.textContent === "Listening… speak naturally") {
-                 micText.textContent = "Explain by speaking";
+             // Show helpful text if we actually recorded something
+             if (speechMetrics.totalDuration > 1000) {
+                micText.textContent = "You can edit the text before analyzing";
+                setTimeout(() => {
+                    if(!isListening && micText.textContent === "You can edit the text before analyzing") {
+                        micText.textContent = "Explain by speaking";
+                    }
+                }, 4000);
              }
         };
 
         recognition.onresult = (event) => {
-             const transcript = event.results[0][0].transcript;
-             const currentVal = explanationInput.value;
-             const prefix = (currentVal && !currentVal.endsWith(' ') && !currentVal.endsWith('\n')) ? ' ' : '';
+             let interim = '';
+             let final = '';
+
+             for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    final += event.results[i][0].transcript;
+                } else {
+                    interim += event.results[i][0].transcript;
+                }
+             }
+
+             // Append to what was there before recording started
+             // Simple spacing logic
+             const existing = finalTranscript;
+             const prefix = (existing && !existing.endsWith(' ') && !existing.endsWith('\n')) ? ' ' : '';
              
-             explanationInput.value = currentVal + prefix + transcript;
+             // Update UI live
+             // Identify if we are appending or replacing the 'interim' part
+             // Simplest approach: Just update value with (Base + Final + Interim)
+             // Note: event.results accumulates in continuous mode usually, 
+             // but we need to manage the text cursor carefully.
+             // Strategy: Just rewrite the tail.
              
-             // Trigger input event to update char count and auto-expand
+             // Actually, continuous mode accumulates results in event.results.
+             // We can just reconstruct the whole *new* segment.
+             
+             let newTranscript = '';
+             for (let i = 0; i < event.results.length; ++i) {
+                 newTranscript += event.results[i][0].transcript;
+             }
+             
+             explanationInput.value = existing + prefix + newTranscript;
+             explanationInput.scrollTop = explanationInput.scrollHeight;
              explanationInput.dispatchEvent(new Event('input'));
-             
-             // Show success helper text
-             micText.textContent = "You can edit the text before analyzing";
-             setTimeout(() => {
-                 if(!isListening && micText.textContent === "You can edit the text before analyzing") {
-                     micText.textContent = "Explain by speaking";
-                 }
-             }, 4000);
         };
 
         recognition.onerror = (event) => {
              console.error("Speech error", event.error);
              isListening = false;
-             micBtn.disabled = false;
-             micText.textContent = "Explain by speaking"; 
-             micBtn.classList.remove('animate-pulse', 'text-red-500');
+             updateButtonState(false);
         };
     }
 
@@ -241,13 +319,23 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSection.classList.add('hidden');
 
         try {
-            // API Call (Updated for Phase 2)
+            // Prepare Speech Metrics (Phase 3)
+            let durationPayload = null;
+            if (typeof speechMetrics !== 'undefined' && speechMetrics.totalDuration > 0) {
+                 durationPayload = {
+                     total_seconds: Math.round(speechMetrics.totalDuration / 1000),
+                     active_seconds: Math.round(speechMetrics.activeDuration / 1000)
+                 };
+            }
+
+            // API Call (Updated for Phase 2 & 3)
             const payload = {
                 concept: concept,
                 explanation: explanation,
                 target_audience: audience,
                 source_text: currentSourceText, // Pass if loaded
-                previous_attempt_id: lastAttemptId // Pass if revision
+                previous_attempt_id: lastAttemptId, // Pass if revision
+                speaking_duration: durationPayload // Phase 3: Metrics
             };
 
             const response = await fetch('/api/v1/analyze', {
@@ -268,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Phase 2: Render
             renderResults(data.analysis);
             renderComparison(data.comparison);
+            renderSpeakingMetrics(data.analysis.speaking_metrics);
 
         } catch (error) {
             console.error(error);
@@ -328,6 +417,35 @@ document.addEventListener('DOMContentLoaded', () => {
         // Optionally show remaining gaps here if desired, 
         // but they are usually covered by the main "Gaps" card.
         
+        box.classList.remove('hidden');
+    }
+
+    function renderSpeakingMetrics(metrics) {
+        const box = document.getElementById('speakingMetricsBox');
+        if (!metrics || !metrics.total_time_seconds) {
+            box.classList.add('hidden');
+            return;
+        }
+
+        // Metrics
+        document.getElementById('metricTotalTime').textContent = `${metrics.total_time_seconds}s`;
+        document.getElementById('metricActiveTime').textContent = `${metrics.active_speaking_seconds}s`; // Note: Schema uses active_speaking_seconds
+        document.getElementById('metricPauseRatio').textContent = `${Math.round(metrics.pause_ratio * 100)}%`;
+
+        // Insight
+        document.getElementById('speakingInsight').textContent = metrics.insight || "No insight available.";
+
+        // Suggestions
+        const list = document.getElementById('speakingSuggestions');
+        list.innerHTML = '';
+        if (metrics.suggestions && metrics.suggestions.length > 0) {
+            metrics.suggestions.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `✓ ${item}`;
+                list.appendChild(li);
+            });
+        }
+
         box.classList.remove('hidden');
     }
 

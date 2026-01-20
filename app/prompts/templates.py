@@ -12,7 +12,18 @@ Required JSON Structure:
     "summary": "assessment",
     "gaps": ["list", "of", "missing", "logic"],
     "suggestions": ["list", "of", "tips"],
-    "follow_up_questions": ["question1", "question2"]
+    "follow_up_questions": ["question1", "question2"],
+    "speaking_clarity": {
+        "issues": ["rambling", "run-on sentences", "filler words"],
+        "suggestions": ["pause more", "break it down"]
+    },
+    "speaking_metrics": {
+        "active_speaking_seconds": 12,
+        "total_time_seconds": 15,
+        "pause_ratio": 0.2,
+        "insight": "Good pace but many pauses",
+        "suggestions": ["Try to maintain a steady flow"]
+    }
 }
 """
 
@@ -22,10 +33,16 @@ Context: The user is explaining '{concept}' to a '{target_audience}'.
 User's Explanation:
 "{explanation}"
 
+{speaking_context}
+
 Analyze this explanation strictly using the Feynman principles.
 """
 
 def get_prompt_template(mode: PromptMode, **kwargs) -> str:
     if mode == PromptMode.FEYNMAN_ANALYSIS:
+        # Default empty string for optional params if not provided
+        if "speaking_context" not in kwargs:
+            kwargs["speaking_context"] = ""
+            
         return FEYNMAN_USER_PROMPT_TEMPLATE.format(**kwargs)
     return ""

@@ -63,11 +63,40 @@ class FeynmanAnalyzer:
         if context_str:
             system_prompt_to_use += f"\n\n{context_str}\n\nUse the Reference Material above to check the accuracy of the explanation."
 
+        # 2a. Handle Speaking Metrics
+        speaking_context = ""
+        user_metrics = None
+        
+        if request.speaking_duration:
+            try:
+                total = request.speaking_duration.get('total_seconds', 0)
+                active = request.speaking_duration.get('active_seconds', 0)
+                
+                if total > 0:
+                    pause_ratio = round((total - active) / total, 2)
+                    speaking_context = (
+                        f"Speaking Metrics:\n"
+                        f"- Total Time: {total}s\n"
+                        f"- Active Speaking: {active}s\n"
+                        f"- Pause Ratio: {pause_ratio}\n"
+                        f"Please analyze these metrics in the 'speaking_metrics' JSON field. "
+                        f"Provide a specific 'insight' about their pace/hesitation and 'suggestions' to improve fluency."
+                    )
+                    user_metrics = {
+                        "total_time_seconds": total,
+                        "active_speaking_seconds": active,
+                        "pause_ratio": pause_ratio
+                    }
+                    logger.info(f"Generated speaking context: {user_metrics}")
+            except Exception as e:
+                logger.error(f"Error processing speaking metrics: {e}")
+
         user_prompt = get_prompt_template(
             PromptMode.FEYNMAN_ANALYSIS,
             concept=request.concept,
             target_audience=request.target_audience,
-            explanation=request.explanation
+            explanation=request.explanation,
+            speaking_context=speaking_context
         )
 
         # 3. Call LLM
@@ -81,6 +110,22 @@ class FeynmanAnalyzer:
         try:
             cleaned_response = self.clean_json_string(raw_response)
             analysis_data = json.loads(cleaned_response)
+            
+            # 4a. Enrich with calculated metrics (ensure accuracy)
+            if user_metrics:
+                # Get insight/suggestions from LLM or default
+                llm_metrics = analysis_data.get("speaking_metrics", {})
+                
+                # Merge: force calculated numbers, keep LLM insights
+                final_metrics = {
+                    "total_time_seconds": user_metrics["total_time_seconds"],
+                    "active_speaking_seconds": user_metrics["active_speaking_seconds"],
+                    "pause_ratio": user_metrics["pause_ratio"],
+                    "insight": llm_metrics.get("insight", "Your speaking data has been recorded."),
+                    "suggestions": llm_metrics.get("suggestions", ["Practice maintaining a steady pace."])
+                }
+                analysis_data["speaking_metrics"] = final_metrics
+
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"Failed to parse JSON response: {raw_response}")
             # Fallback
@@ -88,7 +133,11 @@ class FeynmanAnalyzer:
                 "summary": "We couldn't process the AI response correctly.",
                 "gaps": ["System Error: Invalid JSON response"],
                 "suggestions": ["Please try again."],
-                "follow_up_questions": []
+                "follow_up_questions": [],
+                "speaking_clarity": {
+                    "issues": [],
+                    "suggestions": []
+                }
             }
 
         # 5. Handle Comparison (History)
