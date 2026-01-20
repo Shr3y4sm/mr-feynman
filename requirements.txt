@@ -2,7 +2,6 @@ fastapi
 uvicorn
 pydantic
 pydantic-settings
-llama-cpp-python
 python-dotenv
 
 openai

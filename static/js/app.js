@@ -139,6 +139,80 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // --- Phase 3: Speech to Text Logic ---
+    const micBtn = document.getElementById('micBtn');
+    const micText = document.getElementById('micText');
+    const explanationInput = document.getElementById('explanation');
+    
+    // Check browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition && micBtn) {
+        micBtn.classList.remove('hidden');
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false; 
+        recognition.lang = 'en-US';
+
+        let isListening = false;
+
+        micBtn.addEventListener('click', () => {
+             if (isListening) {
+                 recognition.stop();
+                 return;
+             }
+             try {
+                 recognition.start();
+                 isListening = true;
+                 micBtn.disabled = true; // Disable while listening per requirements
+                 micText.textContent = "Listening… speak naturally";
+                 micBtn.classList.add('animate-pulse', 'text-red-500'); // Visual feedback
+             } catch (err) {
+                 console.error("Speech start error", err);
+                 isListening = false;
+                 micBtn.disabled = false;
+             }
+        });
+
+        recognition.onend = () => {
+             isListening = false;
+             micBtn.disabled = false;
+             micBtn.classList.remove('animate-pulse', 'text-red-500');
+             
+             // Only reset text if we didn't just get a result (which sets a specific message)
+             if (micText.textContent === "Listening… speak naturally") {
+                 micText.textContent = "Explain by speaking";
+             }
+        };
+
+        recognition.onresult = (event) => {
+             const transcript = event.results[0][0].transcript;
+             const currentVal = explanationInput.value;
+             const prefix = (currentVal && !currentVal.endsWith(' ') && !currentVal.endsWith('\n')) ? ' ' : '';
+             
+             explanationInput.value = currentVal + prefix + transcript;
+             
+             // Trigger input event to update char count and auto-expand
+             explanationInput.dispatchEvent(new Event('input'));
+             
+             // Show success helper text
+             micText.textContent = "You can edit the text before analyzing";
+             setTimeout(() => {
+                 if(!isListening && micText.textContent === "You can edit the text before analyzing") {
+                     micText.textContent = "Explain by speaking";
+                 }
+             }, 4000);
+        };
+
+        recognition.onerror = (event) => {
+             console.error("Speech error", event.error);
+             isListening = false;
+             micBtn.disabled = false;
+             micText.textContent = "Explain by speaking"; 
+             micBtn.classList.remove('animate-pulse', 'text-red-500');
+        };
+    }
+
     // Simple interaction: Auto-expand textarea
     const textarea = document.getElementById('explanation');
     textarea.addEventListener('input', function() {
@@ -147,7 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update char count if needed
         const count = this.value.length;
-        this.nextElementSibling.textContent = `${count} / 2000 chars`;
+        // Fix for new specific DOM structure (div wrapper)
+        const counter = this.parentElement.querySelector('p.text-right');
+        if (counter) counter.textContent = `${count} / 2000 chars`;
     });
 
     form.addEventListener('submit', async (e) => {
