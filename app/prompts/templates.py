@@ -23,6 +23,13 @@ Required JSON Structure:
         "pause_ratio": 0.2,
         "insight": "Good pace but many pauses",
         "suggestions": ["Try to maintain a steady flow"]
+    },
+    "filler_analysis": {
+        "total_filler_count": 5,
+        "filler_density": 0.05,
+        "common_fillers": ["um", "like"],
+        "insight": "High usage of 'like' indicates hesitation.",
+        "suggestions": ["Pause instead of saying 'like'."]
     }
 }
 """

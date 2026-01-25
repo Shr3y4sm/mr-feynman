@@ -336,6 +336,31 @@
               class="text-sm text-blue-400 list-disc list-inside space-y-1"
             ></ul>
           </div>
+
+          <!-- Phase 3 Step 4: Filler Word Analysis -->
+          <div id="fillerBox" class="mt-6 pt-6 border-t border-border hidden">
+            <h4
+              class="text-sm font-semibold text-white mb-3 flex items-center gap-2"
+            >
+              <span>💬</span> Clarity & Fillers
+            </h4>
+            <div class="flex items-center gap-4 mb-3">
+              <div class="bg-background rounded px-3 py-2 border border-border">
+                <span id="fillerCount" class="text-lg font-bold text-red-400"
+                  >0</span
+                >
+                <span class="text-xs text-textMuted uppercase ml-2"
+                  >Fillers</span
+                >
+              </div>
+              <div class="text-sm text-textMuted">
+                Top offenders:
+                <span id="commonFillers" class="text-white font-mono"></span>
+              </div>
+            </div>
+
+            <p id="fillerInsight" class="text-sm text-textMuted italic"></p>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

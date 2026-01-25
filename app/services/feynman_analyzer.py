@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 import asyncio
+import re
 from datetime import datetime
 
 from app.services.llm_engine import llm_engine
@@ -15,6 +16,11 @@ from app.services.explanation_comparator import ExplanationComparator
 from app.memory.attempts_store import save_attempt, load_attempt
 
 logger = logging.getLogger(__name__)
+
+FILLER_WORDS = [
+    "um", "uh", "like", "you know", "basically", "actually", 
+    "so", "kind of", "sort of", "i mean", "right", "you see"
+]
 
 class FeynmanAnalyzer:
     def __init__(self):
@@ -33,6 +39,38 @@ class FeynmanAnalyzer:
         if json_str.endswith("```"):
             json_str = json_str[:-3]
         return json_str.strip()
+
+    def _analyze_fillers(self, text: str) -> dict:
+        """Detect common filler words in the text."""
+        if barely_text:= (not text or len(text.split()) < 5):
+            return None
+
+        found_fillers = {}
+        total_count = 0
+        
+        # Normalize text slightly for word count, but regex handles matching
+        word_count = len(text.split())
+        
+        for filler in FILLER_WORDS:
+            # Pattern for detecting fillers as whole words/phrases
+            pattern = r'\b' + re.escape(filler) + r'\b'
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            count = len(matches)
+            if count > 0:
+                found_fillers[filler] = count
+                total_count += count
+        
+        if total_count == 0:
+            return None
+
+        density = round(total_count / word_count, 3)
+        common = sorted(found_fillers.keys(), key=lambda k: found_fillers[k], reverse=True)[:3]
+        
+        return {
+            "total_filler_count": total_count,
+            "filler_density": density,
+            "common_fillers": common
+        }
 
     def analyze_explanation(self, request: AnalysisRequest) -> AnalysisResponse:
         logger.info(f"Analyzing concept: {request.concept}")
@@ -63,10 +101,25 @@ class FeynmanAnalyzer:
         if context_str:
             system_prompt_to_use += f"\n\n{context_str}\n\nUse the Reference Material above to check the accuracy of the explanation."
 
-        # 2a. Handle Speaking Metrics
+        # 2a. Handle Speaking Metrics & Fillers
         speaking_context = ""
         user_metrics = None
+        filler_stats = None
         
+        # Calculate Fillers
+        try:
+            filler_stats = self._analyze_fillers(request.explanation)
+            if filler_stats:
+                speaking_context += (
+                    f"\nFiller Analysis:\n"
+                    f"- Total Fillers: {filler_stats['total_filler_count']}\n"
+                    f"- Density: {filler_stats['filler_density']}\n"
+                    f"- Top Fillers: {', '.join(filler_stats['common_fillers'])}\n"
+                    f"Please utilize these stats to provide feedback in the 'filler_analysis' JSON field."
+                )
+        except Exception as e:
+            logger.error(f"Filler analysis failed: {e}")
+
         if request.speaking_duration:
             try:
                 total = request.speaking_duration.get('total_seconds', 0)
@@ -125,6 +178,17 @@ class FeynmanAnalyzer:
                     "suggestions": llm_metrics.get("suggestions", ["Practice maintaining a steady pace."])
                 }
                 analysis_data["speaking_metrics"] = final_metrics
+            
+            if filler_stats:
+                 llm_fillers = analysis_data.get("filler_analysis", {})
+                 final_fillers = {
+                    "total_filler_count": filler_stats["total_filler_count"],
+                    "filler_density": filler_stats["filler_density"],
+                    "common_fillers": filler_stats["common_fillers"],
+                    "insight": llm_fillers.get("insight", "Detected some filler words."),
+                    "suggestions": llm_fillers.get("suggestions", ["Try to pause silently instead of using fillers."])
+                 }
+                 analysis_data["filler_analysis"] = final_fillers
 
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"Failed to parse JSON response: {raw_response}")

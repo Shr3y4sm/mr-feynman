@@ -357,6 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderResults(data.analysis);
             renderComparison(data.comparison);
             renderSpeakingMetrics(data.analysis.speaking_metrics);
+            renderFillerAnalysis(data.analysis.filler_analysis);
 
         } catch (error) {
             console.error(error);
@@ -445,6 +446,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 list.appendChild(li);
             });
         }
+
+        box.classList.remove('hidden');
+    }
+
+    function renderFillerAnalysis(fillers) {
+        const box = document.getElementById('fillerBox');
+        if (!fillers || fillers.total_filler_count === 0) {
+            box.classList.add('hidden');
+            return;
+        }
+
+        document.getElementById('fillerCount').textContent = fillers.total_filler_count;
+        document.getElementById('commonFillers').textContent = (fillers.common_fillers || []).join(', ');
+        document.getElementById('fillerInsight').textContent = fillers.insight || "Consider reducing filler words.";
 
         box.classList.remove('hidden');
     }
