@@ -9,6 +9,7 @@ class AnalysisRequest(BaseModel):
     source_text: Optional[str] = None
     previous_attempt_id: Optional[str] = None
     # Phase 3 additions
+    input_mode: str = Field("text", description="Input mode: 'text' or 'speech'")
     speaking_duration: Optional[dict] = Field(None, description="Metrics: total_seconds, active_seconds")
 
 class AnalysisResponse(BaseModel):

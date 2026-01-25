@@ -120,14 +120,15 @@ class FeynmanAnalyzer:
         except Exception as e:
             logger.error(f"Filler analysis failed: {e}")
 
-        if request.speaking_duration:
+        if request.input_mode == "speech" and request.speaking_duration:
             try:
                 total = request.speaking_duration.get('total_seconds', 0)
                 active = request.speaking_duration.get('active_seconds', 0)
                 
-                if total > 0:
+                if total > 0 and active > 0:
                     pause_ratio = round((total - active) / total, 2)
                     speaking_context = (
+                        f"Speaking Metrics:\n"
                         f"Speaking Metrics:\n"
                         f"- Total Time: {total}s\n"
                         f"- Active Speaking: {active}s\n"
@@ -164,8 +165,8 @@ class FeynmanAnalyzer:
             cleaned_response = self.clean_json_string(raw_response)
             analysis_data = json.loads(cleaned_response)
             
-            # 4a. Enrich with calculated metrics (ensure accuracy)
-            if user_metrics:
+            # 4a. Enrich or Scrub metrics based on input_mode
+            if request.input_mode == "speech" and user_metrics:
                 # Get insight/suggestions from LLM or default
                 llm_metrics = analysis_data.get("speaking_metrics", {})
                 
@@ -178,6 +179,9 @@ class FeynmanAnalyzer:
                     "suggestions": llm_metrics.get("suggestions", ["Practice maintaining a steady pace."])
                 }
                 analysis_data["speaking_metrics"] = final_metrics
+            else:
+                # STRICT FIX: Reduce hallucination risk by explicitly removing the key if not in speech mode
+                analysis_data.pop("speaking_metrics", None)
             
             if filler_stats:
                  llm_fillers = analysis_data.get("filler_analysis", {})

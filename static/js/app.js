@@ -154,6 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
         activeDuration: 0,
         currentActiveStart: 0
     };
+    
+    // Explicit Input Mode: "text" | "speech"
+    let inputMode = "text";
 
     if (SpeechRecognition && micBtn) {
         micBtn.classList.remove('hidden');
@@ -175,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeDuration: 0,
                 currentActiveStart: 0
             };
+            inputMode = "speech"; // Explicitly set to speech mode
         };
 
         const updateButtonState = (listening) => {
@@ -321,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Prepare Speech Metrics (Phase 3)
             let durationPayload = null;
-            if (typeof speechMetrics !== 'undefined' && speechMetrics.totalDuration > 0) {
+            if (inputMode === "speech" && typeof speechMetrics !== 'undefined' && speechMetrics.totalDuration > 0) {
                  durationPayload = {
                      total_seconds: Math.round(speechMetrics.totalDuration / 1000),
                      active_seconds: Math.round(speechMetrics.activeDuration / 1000)
@@ -335,6 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 target_audience: audience,
                 source_text: currentSourceText, // Pass if loaded
                 previous_attempt_id: lastAttemptId, // Pass if revision
+                input_mode: inputMode, // Source of truth
                 speaking_duration: durationPayload // Phase 3: Metrics
             };
 
@@ -358,6 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
             renderComparison(data.comparison);
             renderSpeakingMetrics(data.analysis.speaking_metrics);
             renderFillerAnalysis(data.analysis.filler_analysis);
+
+            // Reset flags for next attempt
+            inputMode = "text";
 
         } catch (error) {
             console.error(error);
@@ -423,8 +431,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSpeakingMetrics(metrics) {
         const box = document.getElementById('speakingMetricsBox');
-        if (!metrics || !metrics.total_time_seconds) {
-            box.classList.add('hidden');
+        
+        // Defensive cleaner: ensure hidden by default
+        box.classList.add('hidden');
+
+        if (!metrics || !metrics.total_time_seconds || metrics.total_time_seconds === 0) {
             return;
         }
 
