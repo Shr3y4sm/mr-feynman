@@ -1,5 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
     const form = document.getElementById('feynmanForm');
+    if (!form) return; 
+
     const analyzeBtn = document.getElementById('analyzeBtn');
     const loadingIcon = document.getElementById('loadingIcon');
     const arrowIcon = document.getElementById('arrowIcon');
@@ -9,7 +11,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // Phase 2 State
     let currentSourceText = null;
     let lastAttemptId = null;
+    
+    // Phase 4 State
+    let sessionState = { 
+        sessionId: null, 
+        turnIndex: 1 
+    };
 
+    // Robust State Sync: Watch for mode changes from inline script
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === "attributes" && mutation.attributeName === "data-purpose") {
+                const newMode = document.body.getAttribute('data-purpose');
+                console.log("App.js: Mode switched to", newMode);
+                // Reset session when switching modes to ensure clean slate
+                sessionState = { sessionId: null, turnIndex: 1 };
+                
+                // Optional: Clear previous results or show a toast
+                const guidance = document.getElementById('guidanceMessage');
+                if(guidance && newMode === 'interview') {
+                   // Pre-prompt guidance for interview
+                   const p = document.getElementById('guidanceText');
+                   if(p) p.textContent = "The AI will challenge your understanding.";
+                }
+            }
+        });
+    });
+    
+    observer.observe(document.body, {
+        attributes: true, 
+        attributeFilter: ["data-purpose"]
+    });
+    
+    // Note: Mode UI switching is now handled by inline script in index.html due to timing issues.
+    // We will read the 'data-purpose' attribute from document.bodyPayload when submitting.
     // --- Phase 2: PDF Upload Logic ---
     const pdfUpload = document.getElementById('pdfUpload');
     const uploadBtn = document.getElementById('uploadBtn');
@@ -332,7 +367,17 @@ document.addEventListener('DOMContentLoaded', () => {
                  };
             }
 
-            // API Call (Updated for Phase 2 & 3)
+            // Phase 4: Get Purpose from Attribute set by Inline Script
+            const currentPurpose = document.body.getAttribute('data-purpose') || 'learning';
+            console.log("Preparing analysis request. Purpose:", currentPurpose);
+            
+            // Loop Logic: Only send session ID if in interview mode
+            const sessionPayload = (currentPurpose === 'interview') ? {
+                session_id: sessionState.sessionId,
+                turn_index: sessionState.turnIndex
+            } : {};
+
+            // API Call (Updated for Phase 2, 3 & 4)
             const payload = {
                 concept: concept,
                 explanation: explanation,
@@ -340,8 +385,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 source_text: currentSourceText, // Pass if loaded
                 previous_attempt_id: lastAttemptId, // Pass if revision
                 input_mode: inputMode, // Source of truth
-                speaking_duration: durationPayload // Phase 3: Metrics
+                speaking_duration: durationPayload, // Phase 3: Metrics
+                purpose: currentPurpose, // Phase 4: Learning vs Interview
+                ...sessionPayload
             };
+            
+            console.log("Request Payload:", payload);
 
             const response = await fetch('/api/v1/analyze', {
                 method: 'POST',
@@ -358,8 +407,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastAttemptId = data.attempt_id;
             }
 
+            // Phase 4b: Handle Turn Logic
+            console.log("Response Data:", data);
+            
+            if (data.session_id) {
+                sessionState.sessionId = data.session_id;
+            }
+            
+            if (data.interviewer_followup) {
+                // Update turn index for next reply
+                sessionState.turnIndex = (data.turn_index || sessionState.turnIndex) + 1;
+                
+                // Show follow-up hint
+                 const guide = document.getElementById('guidanceMessage');
+                 if(guide) {
+                     guide.classList.remove('hidden');
+                     // Simple visual hack for turn tracking
+                     guide.querySelector('div.text-primary').innerHTML = `<span class="font-bold text-lg">${data.turn_index}/3</span>`;
+                     const p = guide.querySelector('p#guidanceText');
+                     if(p) p.textContent = `Interviewer follow-up received. Answer below to continue.`;
+                 }
+            } else if (data.conversation_complete) {
+                sessionState = { sessionId: null, turnIndex: 1 }; // Reset
+                const guide = document.getElementById('guidanceMessage');
+                 if(guide) {
+                     guide.classList.remove('hidden');
+                     guide.querySelector('div.text-primary').innerHTML = `<span class="font-bold text-lg">✔</span>`;
+                     const p = guide.querySelector('p#guidanceText');
+                     if(p) p.textContent = `Interview Complete. Great job!`;
+                 }
+            }
+
             // Phase 2: Render
-            renderResults(data.analysis);
+            renderResults(data.analysis, data.interviewer_followup);
             renderComparison(data.comparison);
             renderSpeakingMetrics(data.analysis.speaking_metrics);
             renderFillerAnalysis(data.analysis.filler_analysis);
@@ -475,20 +555,51 @@ document.addEventListener('DOMContentLoaded', () => {
         box.classList.remove('hidden');
     }
 
-    function renderResults(data) {
+    function renderResults(data, followup=null) {
         // Update Feedback Framing based on context
         const framing = document.getElementById('feedbackFraming');
         if (framing) {
-             if (currentSourceText) {
+             if (followup) {
+                 framing.textContent = "INTERVIEWER FOLLOW-UP";
+                 framing.className = "text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-orange-500";
+             } else if (currentSourceText) {
                 framing.textContent = "This feedback is based on your explanation and the material you uploaded.";
+                framing.className = "text-sm text-textMuted";
              } else {
                 framing.textContent = "This feedback is based on your explanation.";
+                framing.className = "text-sm text-textMuted";
              }
         }
 
-        // Populate Data
-        document.getElementById('summaryText').textContent = data.summary;
-        
+        // Phase 4: Prioritize Follow-Up Question if present
+        const summaryElement = document.getElementById('summaryText');
+        if (followup && followup.question) {
+             const followupHtml = `
+                <div class="p-4 bg-[rgba(255,104,3,0.1)] border border-primary rounded-xl mb-4 animate-pulse-slow">
+                    <h4 class="text-primary font-bold mb-2 uppercase text-xs tracking-wider">Interviewer Follow-up</h4>
+                    <p class="text-white text-lg font-medium">"${followup.question}"</p>
+                    <p class="text-sm text-textMuted mt-2 italic">Intent: ${followup.intent}</p>
+                </div>
+             `;
+             summaryElement.innerHTML = followupHtml + `<p class="opacity-80">${data.summary}</p>`;
+        } else {
+            summaryElement.textContent = data.summary;
+        }
+
+        // Helper to create cards
+        if (followup && followup.question) {
+             const followupHtml = `
+                <div class="p-4 bg-[rgba(255,104,3,0.1)] border border-primary rounded-xl mb-4 animate-pulse-slow">
+                    <h4 class="text-primary font-bold mb-2 uppercase text-xs tracking-wider">Interviewer Follow-up</h4>
+                    <p class="text-white text-lg font-medium">"${followup.question}"</p>
+                    <p class="text-sm text-textMuted mt-2 italic">Intent: ${followup.intent}</p>
+                </div>
+             `;
+             summaryElement.innerHTML = followupHtml + `<p class="opacity-80">${data.summary}</p>`;
+        } else {
+            summaryElement.textContent = data.summary;
+        }
+
         // Helper to create cards
         const createCard = (text, bgClass = 'bg-surface') => {
             const div = document.createElement('div');
@@ -525,4 +636,11 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
     }
-});
+}
+
+// Initialize application
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}

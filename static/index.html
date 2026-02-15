@@ -112,6 +112,78 @@
         </div>
       </div>
 
+      <!-- Phase 4: Purpose Mode Selector -->
+      <div
+        class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in-up"
+        style="animation-delay: 0.1s"
+      >
+        <!-- Learning Mode (Default) -->
+        <div
+          id="learningModeCard"
+          onclick="setMode('learning')"
+          class="cursor-pointer relative group p-6 rounded-2xl border-2 border-primary bg-surface/50 hover:bg-surface hover:scale-[1.01] transition-all duration-200 z-10"
+        >
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="text-lg font-bold text-white">Learning Mode</h3>
+            <div class="chk-icon text-primary">
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+            </div>
+          </div>
+          <p class="text-sm text-textMuted">
+            Explain simply to a novice. Focus on analogies and intuition.
+          </p>
+        </div>
+
+        <!-- Interview Mode -->
+        <div
+          id="interviewModeCard"
+          onclick="setMode('interview')"
+          class="cursor-pointer relative group p-6 rounded-2xl border border-border bg-surface/30 hover:bg-surface hover:border-primary/50 hover:scale-[1.01] transition-all duration-200 opacity-70 z-10"
+        >
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="text-lg font-bold text-white">Interview Mode</h3>
+            <div class="chk-icon text-primary hidden">
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+            </div>
+          </div>
+          <p class="text-sm text-textMuted">
+            Technical deep-dive. Evaluative feedback on gaps and trade-offs.
+          </p>
+        </div>
+      </div>
+
+      <!-- Mode Banner -->
+      <div
+        id="modeBanner"
+        class="hidden animate-fade-in mb-4 p-3 rounded-lg border border-primary/20 bg-primary/5 text-center text-sm text-primary font-medium"
+      >
+        📘 <strong>Learning Mode</strong> — Build understanding step-by-step.
+      </div>
+
       <!-- Main Explanation Panel -->
       <section
         class="bg-surface border border-border rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden animate-fade-in-up"
@@ -432,6 +504,95 @@
       </section>
     </main>
 
-    <script src="js/app.js"></script>
+    <script>
+      // Inline script to handle mode switching immediately
+      // Avoiding race conditions with main app.js loading
+      function setMode(mode) {
+        console.log("Inline setMode called:", mode);
+        // 1. Set State
+        document.body.setAttribute("data-purpose", mode);
+
+        // 2. Update Visuals
+        const learning = document.getElementById("learningModeCard");
+        const interview = document.getElementById("interviewModeCard");
+        const banner = document.getElementById("modeBanner");
+
+        if (!learning || !interview) return;
+
+        if (mode === "learning") {
+          // Active: Learning
+          learning.classList.add(
+            "border-primary",
+            "bg-surface/50",
+            "opacity-100",
+          );
+          learning.classList.remove(
+            "border-border",
+            "bg-surface/30",
+            "opacity-70",
+          );
+          learning.querySelector(".chk-icon").classList.remove("hidden");
+
+          // Inactive: Interview
+          interview.classList.add(
+            "border-border",
+            "bg-surface/30",
+            "opacity-70",
+          );
+          interview.classList.remove(
+            "border-primary",
+            "bg-surface/50",
+            "opacity-100",
+          );
+          interview.querySelector(".chk-icon").classList.add("hidden");
+
+          // Banner
+          banner.classList.remove("hidden");
+          banner.innerHTML =
+            "📘 <strong>Learning Mode</strong> — Build understanding step-by-step.";
+          banner.className =
+            "mb-4 p-3 rounded-lg border border-primary/20 bg-primary/5 text-center text-sm text-textMuted font-medium animate-fade-in";
+        } else {
+          // Active: Interview
+          interview.classList.add(
+            "border-primary",
+            "bg-surface/50",
+            "opacity-100",
+          );
+          interview.classList.remove(
+            "border-border",
+            "bg-surface/30",
+            "opacity-70",
+          );
+          interview.querySelector(".chk-icon").classList.remove("hidden");
+
+          // Inactive: Learning
+          learning.classList.add(
+            "border-border",
+            "bg-surface/30",
+            "opacity-70",
+          );
+          learning.classList.remove(
+            "border-primary",
+            "bg-surface/50",
+            "opacity-100",
+          );
+          learning.querySelector(".chk-icon").classList.add("hidden");
+
+          // Banner
+          banner.classList.remove("hidden");
+          banner.innerHTML =
+            "🧠 <strong>Interview Mode Active</strong> — You will be challenged (3 turns max).";
+          banner.className =
+            "mb-4 p-3 rounded-lg border border-primary/40 bg-primary/10 text-center text-sm text-primary font-medium shadow-lg shadow-orange-900/20 animate-fade-in";
+        }
+      }
+
+      // Initialize Default immediately
+      document.addEventListener("DOMContentLoaded", () => {
+        setMode("learning");
+      });
+    </script>
+    <script src="js/app.js?v=2"></script>
   </body>
 </html>

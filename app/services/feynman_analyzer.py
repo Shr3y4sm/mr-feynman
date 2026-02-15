@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 
 from app.services.llm_engine import llm_engine
-from app.prompts.templates import FEYNMAN_SYSTEM_PROMPT, get_prompt_template, PromptMode
+from app.prompts.templates import FEYNMAN_SYSTEM_PROMPT, PROFESSOR_FEYNMAN_SYSTEM_PROMPT, INTERVIEWER_FEYNMAN_SYSTEM_PROMPT, get_prompt_template, PromptMode
 from app.schemas.analysis import AnalysisRequest, AnalysisResponse
 
 # Logic Services
@@ -97,7 +97,24 @@ class FeynmanAnalyzer:
                 # Continue without context rather than crashing
 
         # 2. Prepare Prompt
-        system_prompt_to_use = FEYNMAN_SYSTEM_PROMPT
+        logger.info(f"Analysis Purpose Mode: {request.purpose}")
+
+        # Phase 4b: Interview Loop Logic
+        is_interview = (request.purpose == 'interview')
+        session_id = request.session_id or str(uuid.uuid4())
+        turn_index = request.turn_index
+        conversation_complete = False
+        
+        system_prompt_to_use = PROFESSOR_FEYNMAN_SYSTEM_PROMPT
+
+        if is_interview:
+            if turn_index >= 3:
+                # End of conversation: Force no new question
+                system_prompt_to_use = INTERVIEWER_FEYNMAN_SYSTEM_PROMPT.replace("Generate ONE specific 'interviewer_followup' question", "Do NOT generate any follow-up questions. State 'Interview Complete'.")
+                conversation_complete = True
+            else:
+                system_prompt_to_use = INTERVIEWER_FEYNMAN_SYSTEM_PROMPT
+        
         if context_str:
             system_prompt_to_use += f"\n\n{context_str}\n\nUse the Reference Material above to check the accuracy of the explanation."
 
@@ -238,10 +255,20 @@ class FeynmanAnalyzer:
             logger.error(f"Failed to save attempt: {e}")
 
         # 7. construct Response
+        # 6a. Phase 4b: Enrich Response
+        interviewer_followup = analysis_data.get('interviewer_followup') if (is_interview and not conversation_complete) else None
+        
+        logger.info(f"Interview session {session_id} turn {turn_index}, followup_generated={bool(interviewer_followup)}")
+
         return AnalysisResponse(
             analysis=analysis_data,
             comparison=comparison_result,
-            attempt_id=new_attempt_id
+            attempt_id=new_attempt_id,
+            # Loop data
+            session_id=session_id if is_interview else None,
+            turn_index=turn_index,
+            conversation_complete=conversation_complete,
+            interviewer_followup=interviewer_followup
         )
 
 analyzer_service = FeynmanAnalyzer()
